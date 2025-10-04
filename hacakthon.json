@@ -1,0 +1,198 @@
+{
+  "name": "hacakthon",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "daysInterval": 7,
+              "triggerAtHour": 7,
+              "triggerAtMinute": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -432,
+        -16
+      ],
+      "id": "8af7938d-098d-4202-b5be-fbf2065d2005",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1K_b7F3m549wjzfDXAIwL2fAmxvTVnxvC8qM5Ig8jJuk",
+          "mode": "list",
+          "cachedResultName": "Feedback Entries-Grid view",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1K_b7F3m549wjzfDXAIwL2fAmxvTVnxvC8qM5Ig8jJuk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2082772829,
+          "mode": "list",
+          "cachedResultName": "Feedback Entries-Grid view",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1K_b7F3m549wjzfDXAIwL2fAmxvTVnxvC8qM5Ig8jJuk/edit#gid=2082772829"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -224,
+        -16
+      ],
+      "id": "9f4ad6e3-17d1-4db0-bd2d-36c20f48e602",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ZFA3RYboMHgL4uJ8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a product feedback analyst. Analyze the following customer feedback and return a JSON object with the following fields:\n\n- \"sentiment\": \"Positive\", \"Neutral\", or \"Negative\"\n- \"urgency\": integer from 1 (low) to 10 (high), indicating how urgent it is to address this feedback\n- \"impact\": integer from 1 (low) to 10 (high), indicating how much this feedback affects user experience or business\n- \"topic\": a short phrase summarizing the main issue or feature mentioned\n- \"summary\": a one-sentence summary of the feedback\n\nFeedback:\n\"\"\"\n{{ $json['Feedback Summary (AI)'] }}\n\"\"\"\n\nReturn only valid JSON.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -16,
+        -16
+      ],
+      "id": "721975e7-b1f1-40dc-bf39-363e2dc98aa6",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        160
+      ],
+      "id": "4c37a145-2abf-4a77-a5c8-c886b464dfad",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "kDQEcBEewnWs0w8i",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse, compute priority, and prepare top 5 summary\nlet feedbackList = items.map(item => {\n    const cleanOutput = item.json.output.replace(/```json|```/g, '').trim();\n    const feedback = JSON.parse(cleanOutput);\n    feedback.priority = feedback.urgency * feedback.impact;\n    return feedback;\n});\n\n// Sort by priority descending\nfeedbackList.sort((a, b) => b.priority - a.priority);\n\n// Take top 5\nfeedbackList = feedbackList.slice(0, 5);\n\n// Prepare a clean Slack/Notion message\nlet message = \"📝 *Top 5 Feedback Items This Week*\\n\";\n\nfeedbackList.forEach((fb, index) => {\n    const numEmoji = [\"1️⃣\", \"2️⃣\", \"3️⃣\", \"4️⃣\", \"5️⃣\"][index];\n    message += `\\n${numEmoji} *${fb.topic}*\\n`;\n    message += `   ➤ *Summary:* ${fb.summary}\\n`;\n    message += `   ➤ *Sentiment:* ${fb.sentiment}\\n`;\n    message += `   ➤ *Urgency:* ${fb.urgency} | *Impact:* ${fb.impact} | *Priority:* ${fb.priority}\\n`;\n});\n\n// Return the message in n8n item\nreturn [{ json: { message } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -16
+      ],
+      "id": "a433fbfc-1b76-4000-921c-4b8ebe8c0546",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "pankajkumargupta12167480@gmail.com",
+        "subject": "Weekly Feedback Prioritization Report",
+        "message": "={{$json[\"message\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        544,
+        -16
+      ],
+      "id": "bc23e1c7-001c-44cc-a3b0-17287a54a087",
+      "name": "Send a message",
+      "webhookId": "2d3d6341-b817-45ef-a2da-4d29f9a6a937",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jaXH6H4nnCt78MzE",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7a4da1c7-7a7d-4a32-88ab-2d5f0f46d74c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1f83ac185273cda6c114dab2896c93c491357da9cc92d685007cd5db8a329b7b"
+  },
+  "id": "u6S81lHZrB9Xc7iQ",
+  "tags": []
+}
